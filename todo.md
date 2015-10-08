@@ -1,0 +1,9 @@
+## BotBot's ToDo
+
+* ~~Stop spamming~~
+* ~~Replace @ with username~~
+* ~~Capitalize first letter~~
+* Attack
+* Stats
+* No more than one instance of botbot should be running
+* Stop greeting master
