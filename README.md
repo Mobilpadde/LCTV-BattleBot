@@ -1,2 +1,2 @@
-# LCTV-ChatBot
-A simple chatbot for http://livecoding.tv
+# LCTV-BattleBot
+A simple battlebot for http://livecoding.tv

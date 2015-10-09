@@ -1,16 +1,19 @@
-clearInterval(window.botbotInterval);
-clearInterval(window.botbotKnights);
-clearInterval(window.botbotCounter);
-window.botbot = (function(){
-    var version = "0.0.5", counter = 0;
+window.battlebot = (function(){
+    var version = "0.0.8", counter = 0;
+    /*
+    # = team
+    @ = username
+    € = time
+    */
 
     var messages = {
-        welcome: "Welcome to the battle @! You have been assigned the #-team. Fight!",
+        welcome: "Greetings @! You have been assigned the #-team. Fight!",
         sorry: "Sorry, Sir @, I don't know the answer for that.",
         noIdea: "I don't know! But what I do now, is that we're in the middle of a war!",
-        length: "The war has been on for " + counter + " seconds.",
+        length: "The war has been on for € seconds.",
         history: "A long time ago. The two nations, red and blue, decided that they did not like one another. So as any sane person would do, they declared war against eachother.",
-        stats: "#-team seems to be winning."
+        stats: "#-team seems to be winning.",
+        dead: "Hey, @! A skeleton do not talk!"
     }, questions = [
         "length",
         "history",
@@ -18,9 +21,21 @@ window.botbot = (function(){
     ], knights = {red: {}, blue: {}}, lastMessage = $(".message:last-child"), interval = 275;
 
     var sendMessage = (function(message){
-        $("#message-textarea").val("Botbot: " + message);
+        $("#message-textarea").val("battlebot: " + message);
         $(".message-form").submit();
-    }), bot = function(){
+    }), selectTeam = function(user){
+        var team;
+        if(Object.keys(knights["red"]).length == Object.keys(knights["blue"]).length){
+            team = (~~(Math.random() * 2) ? "red" : "blue");
+        }else if(Object.keys(knights["red"]).length < Object.keys(knights["blue"]).length){
+            team = "red";
+        }else team = "blue";
+
+        knights[team][user] = {hp: 100, def: 75};
+
+        user = user.charAt(0).toUpperCase() + user.slice(1);
+        sendMessage(messages.welcome.replace("@", user).replace("#", team));
+    }, bot = function(){
         if(lastMessage != $(".message:last-child")){
             var rawText = $(".message:last-child").html().replace(/\<.*\>/, ""),
                 asker = $(".message:last-child").html().replace(/(<.*>)(.*)(<.*>)(.*)/, "$2");
@@ -28,10 +43,9 @@ window.botbot = (function(){
             asker = asker.charAt(0).toUpperCase() + asker.slice(1);
 
             if($(lastMessage).hasClass("message-info")){
-                var username = asker.split(" ")[0], team = (~~(Math.random() * 2) ? "red" : "blue");
-                knights[team][username] = {hp: 100, def: 75};
-                sendMessage(messages.welcome.replace("@", username).replace("#", team));
-            }else if(rawText.indexOf("!botbot") == 0){
+                var username = asker.split(" ")[0];
+                selectTeam(username);
+            }else if(rawText.indexOf("!battlebot") == 0){
                 var text = $(".message:last-child").html().replace(/\<.*\>/, "").substr(7, $(".message:last-child").html().replace(/\<.*\>/, "").length).toLowerCase(),
                     foundAnswer = false;
 
@@ -41,8 +55,11 @@ window.botbot = (function(){
                         if(questions[i] == "stats"){
                             for(var knight in knights["red"]) blue += knight.hp;
                             for(var knight in knights["blue"]) red += knight.hp;
+
+                            red /= Object.keys(knights["red"]).length;
+                            blue /= Object.keys(knights["blue"]).length;
                         }
-                        sendMessage(messages[questions[i]].replace("@", asker).replace("#", (red < blue ? "red" : "blue")));
+                        sendMessage(messages[questions[i]].replace("@", asker).replace("€", counter).replace("#", (red > blue ? "red" : "blue")));
                         foundAnswer = true;
                         break;
                     }
@@ -57,7 +74,7 @@ window.botbot = (function(){
                         }else if(knights["blue"].hasOwnProperty(splitText[2])){
                             knight = knights["blue"][splitText[2]];
                         }
-                        console.log(splitText, knight);
+                        console.log(splitText, knight, knight == undefined);
 
                         sendMessage("Attacking " + splitText[2] + "!");
                         var lostHp = ~~(Math.random() * ((knight.hp - knight.def) + knight.hp));
@@ -65,8 +82,15 @@ window.botbot = (function(){
                             knight.hp -= lostHp;
                             sendMessage(splitText[2] + " lost " + lostHp + "HP. [HP: " + knight.hp + ", DEF: " + knight.def + "]");
                         }else{
+                            var prevDef = knight.def;
                             knight.def -= lostHp;
-                            sendMessage(splitText[2] + " lost " + lostHp + "DEF. [HP: " + knight.hp + ", DEF: " + knight.def + "]");
+                            if(knight.def < 0){
+                                knight.def = 0;
+                                knight.hp -= lostHp - prevDef;
+                                sendMessage(splitText[2] + " lost " + prevDef + "DEF and " + (lostHp - prevDef) + "HP. [HP: " + knight.hp + ", DEF: 0]");
+                            }else{
+                                sendMessage(splitText[2] + " lost " + lostHp + "DEF. [HP: " + knight.hp + ", DEF: " + knight.def + "]");
+                            }
                         }
                     }else{
                         sendMessage("No such knight exists.");
@@ -86,7 +110,19 @@ window.botbot = (function(){
                 else if(!foundAnswer && text.indexOf("?") > -1) sendMessage(messages.sorry.replace("@", asker));
                 else if(!foundAnswer) sendMessage(messages.noIdea);
             }
+
+            var found = false, hp = 10;
+            if(knights["red"].hasOwnProperty(asker)){ found = true; hp = knights["red"][asker.toLowerCase()].hp; }
+            if(knights["blue"].hasOwnProperty(asker)){ found = true; hp = knights["blue"][asker.toLowerCase()].hp; }
+            if(found && hp <= 0) sendMessage(messages.dead.replace("@", asker));
             lastMessage = $(".message:last-child");
+        }
+    }, regenHp = function(){
+        for(var o in knights["red"]){
+            if(knights["red"][o].hp < 45) knights["red"][o].hp += 1;
+        }
+        for(var o in knights["blue"]){
+            if(knights["blue"][o].hp < 45) knights["blue"][o].hp += 1;
         }
     }, findKnights = function(){
         var toBe = $(".roster-pane .user"), toBeKnights = [];
@@ -98,59 +134,63 @@ window.botbot = (function(){
             var found = false;
             if(knights["red"].hasOwnProperty(toBeKnights[i])) found = true;
             if(knights["blue"].hasOwnProperty(toBeKnights[i])) found = true;
-            if(found) break;
-            var team = (~~(Math.random() * 2) ? "red" : "blue");
-            knights[team][toBeKnights[i]] = {hp: 100, def: 75};
-            sendMessage(toBeKnights[i] + ", you have been assigned to the " + team + "-team. Fight!");
+            if(found) continue;
+            selectTeam(toBeKnights[i]);
         }
     };
 
     var init = function(obj){
-        if(window.botbotInterval != undefined || window.botbotCounter != undefined || window.botbotKnights != undefined){
-            console.log("Botbot is already running!\r\nPlease kill it before running another.");
+        if(window.battlebotInterval != undefined || window.battlebotCounter != undefined || window.battlebotRegen != undefined){
+            console.log("Battlebot is already running!\r\nPlease kill it before running another.");
             return false;
         }
-
-        window.botbotInterval = undefined;
-        window.botbotKnights = undefined;
-        window.botbotCounter = undefined;
 
         if(typeof obj == "object"){
             for(var i in obj) messages[i] = obj[i];
         }
 
-        window.botbotInterval = setInterval(bot, interval);
-        window.botbotKnights = setInterval(findKnights, 2500);
-        window.botbotCounter = setInterval(function(){ counter++ }, 1000);
+        findKnights();
+
+        window.battlebotInterval = setInterval(bot, interval);
+        window.battlebotRegen = setInterval(regenHp, 60 * 5 * 1000);
+        window.battlebotCounter = setInterval(function(){ counter++ }, 1000);
+
         sendMessage("The battle has begun!");
         console.log("The battle has begun!");
     }, pause = function(){
-        clearInterval(window.botbotInterval);
-        clearInterval(window.botbotKnights);
-        clearInterval(window.botbotCounter);
+        clearInterval(window.battlebotInterval);
+        clearInterval(window.battlebotRegen);
+        clearInterval(window.battlebotCounter);
+
         sendMessage("A truce has been called, stop the battle!");
         console.log("A truce has been called, stop the battle!");
     }, resume = function(){
-        window.botbotInterval = setInterval(bot, interval);
-        window.botbotKnights = setInterval(findKnights, 2500);
-        window.botbotCounter = setInterval(function(){ counter++ }, 1000);
+        window.battlebotInterval = setInterval(bot, interval);
+        window.battlebotCounter = setInterval(function(){ counter++ }, 1000);
+        window.battlebotRegen = setInterval(regenHp, 60 * 5 * 1000);
+
         sendMessage("The battle has been resumed. Carry on, knights!");
         console.log("The battle has been resumed. Carry on, knights!");
     }, kill = function(){
-        clearInterval(window.botbotInterval);
-        clearInterval(window.botbotKnights);
-        clearInterval(window.botbotCounter);
-        botbot = undefined;
-        window.botbotInterval = undefined;
-        window.botbotKnights = undefined;
-        window.botbotCounter = undefined;
+        clearInterval(window.battlebotInterval);
+        clearInterval(window.battlebotRegen);
+        clearInterval(window.battlebotCounter);
+
+        window.battlebot = undefined;
+        window.battlebotInterval = undefined;
+        window.battlebotRegen = undefined;
+        window.battlebotCounter = undefined;
 
         var red = 0, blue = 0;
-        for(var knight in knights["red"]) blue += knight.hp;
-        for(var knight in knights["blue"]) red += knight.hp;
+        for(var knight in knights["red"]) blue += knights["red"][knight].hp;
+        for(var knight in knights["blue"]) red += knights["blue"][knight].hp;
 
-        sendMessage("The battle has ended. And " + (red < blue ? "red" : "blue") + "-team won!");
-        console.log("The battle has ended. And " + (red < blue ? "red" : "blue") + "-team won!");
+        red /= Object.keys(knights["red"]).length;
+        blue /= Object.keys(knights["blue"]).length;
+
+        var winner = "The battle has ended. " + (red == blue ? "It's a tie between red and blue!" : "The " + (red > blue ? "red" : "blue") + "-team won!");
+        sendMessage(winner);
+        console.log(winner);
     };
 
     return {
