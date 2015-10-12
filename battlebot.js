@@ -1,11 +1,11 @@
 window.battlebot = (function(){
-    var version = "0.0.8", counter = 0;
+    var version = "0.0.9", counter = 0, color = 3;
+
     /*
     # = team
     @ = username
     € = time
     */
-
     var messages = {
         welcome: "Greetings @! You have been assigned the #-team. Fight!",
         sorry: "Sorry, Sir @, I don't know the answer for that.",
@@ -13,16 +13,35 @@ window.battlebot = (function(){
         length: "The war has been on for € seconds.",
         history: "A long time ago. The two nations, red and blue, decided that they did not like one another. So as any sane person would do, they declared war against eachother.",
         stats: "#-team seems to be winning.",
-        dead: "Hey, @! A skeleton do not talk!"
+        dead: "Hey, @! Dead men tell no tales!"
     }, questions = [
         "length",
         "history",
         "stats"
-    ], knights = {red: {}, blue: {}}, lastMessage = $(".message:last-child"), interval = 275;
+    ], knights = {red: {}, blue: {}}, lastMessage = $(".message:last-child"), interval = 350;
 
     var sendMessage = (function(message){
-        $("#message-textarea").val("battlebot: " + message);
-        $(".message-form").submit();
+        var col = $("#colorPremiumInput").val();
+        //$(Candy).triggerHandler("candy:lctv.color-change", {color: "#ffffff"});
+        $.post("/chat/set-nick-color.json", {color: "#ffffff"}, function(data){
+            if(data.changed){
+                Candy.Core.Action.Jabber.Presence({to: "mobilpadde@chat.livecoding.tv"});
+                CandyShop.LivecodingExtras.updateColor(data.color);
+
+                $("#message-textarea").val("Battlebot: " + message);
+                $(".message-form").submit();
+
+                $.post("/chat/set-nick-color.json", {color: col}, function(data2){
+                    if(data2.changed){
+                        Candy.Core.Action.Jabber.Presence({to: "mobilpadde@chat.livecoding.tv"});
+                        CandyShop.LivecodingExtras.updateColor(data2.color);
+                    }
+                });
+            }
+        });
+        //$("#message-textarea").val("battlebot: " + message);
+        //$(".message-form").submit();
+        //$(Candy).triggerHandler("candy:lctv.color-change", {color: col});
     }), selectTeam = function(user){
         var team;
         if(Object.keys(knights["red"]).length == Object.keys(knights["blue"]).length){
@@ -139,7 +158,7 @@ window.battlebot = (function(){
         }
     };
 
-    var init = function(obj){
+    var init = function(obj, col){
         if(window.battlebotInterval != undefined || window.battlebotCounter != undefined || window.battlebotRegen != undefined){
             console.log("Battlebot is already running!\r\nPlease kill it before running another.");
             return false;
@@ -148,6 +167,8 @@ window.battlebot = (function(){
         if(typeof obj == "object"){
             for(var i in obj) messages[i] = obj[i];
         }
+
+        color = col || 3;
 
         findKnights();
 

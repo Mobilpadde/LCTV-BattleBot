@@ -10,3 +10,4 @@
 * ~~Proper balancing algorithm~~
 * ~~Regenerate life~~
 * Dead men tell no tales
+* Color
